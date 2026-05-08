@@ -7,7 +7,39 @@ import math
 
 
 # =========================================
-# RECTANGULAR DUCT
+# STANDARD DUCT ROUNDING
+# =========================================
+
+def nearest_standard_size(value):
+
+    return round(value / 50) * 50
+
+
+# =========================================
+# VELOCITY VALIDATION
+# =========================================
+
+def velocity_validation(velocity):
+
+    if velocity > 10:
+
+        return "WARNING : Very High Velocity - Noise Risk"
+
+    elif velocity > 8:
+
+        return "WARNING : High Velocity - High Pressure Drop"
+
+    elif velocity < 3:
+
+        return "WARNING : Low Velocity - Oversized Duct"
+
+    else:
+
+        return "Velocity is within recommended HVAC range"
+
+
+# =========================================
+# RECTANGULAR DUCT SIZING
 # =========================================
 
 def rectangular_duct_sizing(
@@ -39,6 +71,22 @@ def rectangular_duct_sizing(
         height * 1000
     )
 
+    # -------------------------------------
+    # STANDARD SIZES
+    # -------------------------------------
+
+    width_mm = nearest_standard_size(
+        width_mm
+    )
+
+    height_mm = nearest_standard_size(
+        height_mm
+    )
+
+    # -------------------------------------
+    # EQUIVALENT DIAMETER
+    # -------------------------------------
+
     equivalent_dia = 1.3 * (
 
         (
@@ -53,6 +101,10 @@ def rectangular_duct_sizing(
             height_mm
         ) ** 0.25
     )
+
+    # -------------------------------------
+    # RETURN RESULTS
+    # -------------------------------------
 
     return {
 
@@ -78,12 +130,16 @@ def rectangular_duct_sizing(
 
         "Equivalent Diameter (mm)": round(
             equivalent_dia, 0
+        ),
+
+        "Velocity Status": velocity_validation(
+            velocity
         )
     }
 
 
 # =========================================
-# CIRCULAR DUCT
+# CIRCULAR DUCT SIZING
 # =========================================
 
 def circular_duct_sizing(
@@ -125,5 +181,9 @@ def circular_duct_sizing(
 
         "Circular Diameter (mm)": round(
             diameter_mm, 0
+        ),
+
+        "Velocity Status": velocity_validation(
+            velocity
         )
     }
