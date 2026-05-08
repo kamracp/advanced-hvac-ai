@@ -36,7 +36,10 @@ from modules.energy_analyzer import (
 
     hvac_energy_analyzer
 )
+from modules.user_manual import (
 
+    show_user_manual
+)
 
 # =========================================
 # ADVANCED HVAC AI
@@ -228,7 +231,7 @@ project_name = st.sidebar.text_input(
 # MAIN TABS
 # =====================================
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 
     "Cooling Load",
 
@@ -244,7 +247,9 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
 
     "Fan Selection",
 
-    "Energy Analyzer"
+    "Energy Analyzer",
+
+    "User Manual"
 ])
 
 
@@ -944,7 +949,13 @@ with tab8:
                     )
 
             i += 1           
-            
+  # =====================================
+# TAB-9 USER MANUAL
+# =====================================
+
+with tab9:
+
+    show_user_manual()          
             
 # =====================================
 # FOOTER
