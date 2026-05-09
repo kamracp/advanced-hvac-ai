@@ -4,7 +4,8 @@
 # =========================================
 
 import streamlit as st
-
+import matplotlib.pyplot as plt
+import numpy as np
 from modules.cooling_load import (
     total_cooling_load
 )
@@ -40,6 +41,178 @@ from modules.user_manual import (
 
     show_user_manual
 )
+from modules.ventilation_engine import (
+
+    ventilation_tab
+)
+from modules.solar_gain import (
+
+    solar_gain_tab
+)
+from modules.psychrometrics import (
+    psychrometric_tab
+)
+# =========================================
+# ADVANCED HVAC AI
+# U-VALUE CONSTRUCTION ENGINE
+# =========================================
+
+import streamlit as st
+
+
+# =========================================
+# CONSTRUCTION DATABASE
+# =========================================
+
+construction_db = {
+
+    "9in Brick Wall": 2.2,
+
+    "AAC Block Wall": 1.1,
+
+    "Insulated Wall": 0.45,
+
+    "RCC Roof": 3.0,
+
+    "Insulated Roof": 0.6,
+
+    "Double Glazed Glass": 2.8,
+
+    "Reflective Glass": 1.9
+}
+
+
+# =========================================
+# MAIN FUNCTION
+# =========================================
+
+def uvalue_tab():
+
+    st.header(
+        "U-Value Construction Library"
+    )
+
+    st.markdown("---")
+
+    # =====================================
+    # INPUTS
+    # =====================================
+
+    construction = st.selectbox(
+
+        "Construction Type",
+
+        list(construction_db.keys())
+    )
+
+    area = st.number_input(
+
+        "Surface Area (m²)",
+
+        value=100.0
+    )
+
+    delta_t = st.number_input(
+
+        "Temperature Difference ΔT (°C)",
+
+        value=10.0
+    )
+
+    # =====================================
+    # CALCULATIONS
+    # =====================================
+
+    u_value = construction_db[construction]
+
+    heat_gain = (
+
+        u_value
+
+        *
+
+        area
+
+        *
+
+        delta_t
+    )
+
+    heat_gain_kw = heat_gain / 1000
+
+    # =====================================
+    # RESULTS
+    # =====================================
+
+    st.markdown("---")
+
+    st.success(
+        "Envelope Heat Transfer Calculated"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.metric(
+            "Construction Type",
+            construction
+        )
+
+        st.metric(
+            "U-Value",
+            f"{u_value} W/m²K"
+        )
+
+    with col2:
+
+        st.metric(
+            "Envelope Heat Gain",
+            f"{round(heat_gain_kw,2)} kW"
+        )
+
+    # =====================================
+    # ENGINEERING INSIGHT
+    # =====================================
+
+    st.markdown("---")
+
+    if u_value > 2.5:
+
+        st.warning(
+            "High U-value indicates poor insulation."
+        )
+
+    elif u_value < 1.0:
+
+        st.success(
+            "Good thermal insulation performance."
+        )
+
+    # =====================================
+    # ENGINEERING NOTES
+    # =====================================
+
+    st.markdown("---")
+
+    st.info(
+        '''
+        Heat Transfer Formula:
+
+        Q = U × A × ΔT
+
+        Where:
+
+        U = Overall Heat Transfer Coefficient
+
+        A = Surface Area
+
+        ΔT = Temperature Difference
+
+        Lower U-value means better insulation.
+        '''
+    )
+
 
 # =========================================
 # ADVANCED HVAC AI
@@ -231,7 +404,7 @@ project_name = st.sidebar.text_input(
 # MAIN TABS
 # =====================================
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9,tab10,tab11,tab12 = st.tabs([
 
     "Cooling Load",
 
@@ -249,7 +422,12 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
 
     "Energy Analyzer",
 
-    "User Manual"
+    "User Manual",
+    "ASHRAE Ventilation",
+    "Solar Gain",
+    "U-Value Library",
+    
+    
 ])
 
 
@@ -538,9 +716,7 @@ with tab3:
 # =====================================
 # TAB-4 PSYCHROMETRICS
 # =====================================
-# =====================================
-# TAB-4 PSYCHROMETRICS
-# =====================================
+
 
 with tab4:
 
@@ -608,7 +784,83 @@ with tab4:
                     )
 
             i += 1
+        # =====================================
+        # PSYCHROMETRIC VISUALIZATION
+        # =====================================
 
+        st.markdown("---")
+
+        st.subheader(
+            "Psychrometric Visualization"
+        )
+
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        fig, ax = plt.subplots(figsize=(10,6))
+
+        temperatures = np.linspace(0, 50, 100)
+
+        # RH Curves
+
+        for humidity in [20, 40, 60, 80, 100]:
+
+            humidity_curve = (
+                humidity * np.ones_like(
+                    temperatures
+                )
+            )
+
+            ax.plot(
+
+                temperatures,
+
+                humidity_curve,
+
+                label=f"{humidity}% RH"
+            )
+
+        # Current Condition Point
+
+        ax.scatter(
+
+            dbt,
+
+            rh,
+
+            s=150
+        )
+
+        # Comfort Zone
+
+        ax.fill_between(
+
+            [22, 26],
+
+            40,
+
+            60,
+
+            alpha=0.2
+        )
+
+        ax.set_title(
+            "Simplified Psychrometric Chart"
+        )
+
+        ax.set_xlabel(
+            "Dry Bulb Temperature (°C)"
+        )
+
+        ax.set_ylabel(
+            "Relative Humidity (%)"
+        )
+
+        ax.grid(True)
+
+        ax.legend()
+
+        st.pyplot(fig)
 # =====================================
 # TAB-5 PIPE SIZING
 # =====================================
@@ -956,6 +1208,29 @@ with tab8:
 with tab9:
 
     show_user_manual()          
+  # =====================================
+# TAB-10 VENTILATION
+# =====================================
+
+with tab10:
+
+    ventilation_tab()
+  # =====================================
+# TAB-11 SOLAR GAIN
+# =====================================
+
+with tab11:
+
+    solar_gain_tab()
+  # =====================================
+# TAB-12 U-VALUE
+# =====================================
+
+with tab12:
+
+    uvalue_tab()
+  
+  
             
 # =====================================
 # FOOTER
