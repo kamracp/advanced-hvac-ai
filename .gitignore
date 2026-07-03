@@ -1,4 +1,7 @@
 venv/
 __pycache__/
 *.pyc
-.streamlit/
+.env
+.streamlit/secrets.toml
+*.sh.save
+*:Zone.Identifier
