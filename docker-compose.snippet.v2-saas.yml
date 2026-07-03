@@ -1,0 +1,37 @@
+# =====================================================================
+# Advanced HVAC AI v2 - React + FastAPI SaaS architecture
+# Add these services to your existing docker-compose.yml (same file
+# that already runs KBCD frontend/backend/db).
+# =====================================================================
+
+  hvac-backend:
+    build:
+      context: ./hvac-saas/backend
+      dockerfile: Dockerfile
+    container_name: hvac-backend
+    restart: unless-stopped
+    env_file:
+      - ./hvac-saas/backend/.env     # holds ANTHROPIC_API_KEY
+    ports:
+      - "8010:8010"
+
+  hvac-frontend:
+    build:
+      context: ./hvac-saas/frontend
+      dockerfile: Dockerfile
+    container_name: hvac-frontend
+    restart: unless-stopped
+    depends_on:
+      - hvac-backend
+    ports:
+      - "3001:80"
+
+# -----------------------------------------------------------------------
+# ./hvac-saas/backend/.env :
+#   ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxx
+# -----------------------------------------------------------------------
+# This REPLACES the old Streamlit-based "hvac-ai" service (port 8503).
+# After this is confirmed working, stop/remove the old one:
+#   sudo docker stop hvac-ai && sudo docker rm hvac-ai
+# and update the Nginx config for hvac.kamraengineeringsolution.com to
+# proxy_pass to http://127.0.0.1:3001 instead of 8503.
