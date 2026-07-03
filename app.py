@@ -1,332 +1,53 @@
 # =========================================
 # ADVANCED HVAC AI
 # INDIAN SI VERSION
+# Kamra Engineering Solutions
 # =========================================
+"""
+CLEANED VERSION - changes from the original app.py:
 
-import streamlit as st
-import matplotlib.pyplot as plt
-import numpy as np
-from modules.cooling_load import (
-    total_cooling_load
-)
+1. Removed ~200 lines of dead code: the original app.py defined its own
+   inline psychrometric_calculation() + a full duplicate psychrometric
+   chart, AND its own inline uvalue_tab() + construction_db - while
+   modules/psychrometrics.py and modules/uvalue_library.py sat imported
+   but completely unused. This version calls the real module functions
+   instead (modules/psychrometrics.py's chart bug is also fixed there).
 
-from modules.duct_sizing import (
+2. Every calculation result is now stored in st.session_state so it
+   survives the rerun, which makes "Add to Report" possible.
 
-    rectangular_duct_sizing,
+3. Two new tabs: PDF Report Export (your own docs/manual.md already
+   promised this as "13. PDF REPORT MODULE" - it never existed in code
+   until now) and AI Engineering Assistant (Claude-powered, same
+   pattern as KBCD).
 
-    circular_duct_sizing
-)
-
-from modules.pressure_drop import (
-
-    pressure_drop_calculation
-)
-from modules.pipe_sizing import (
-
-    pipe_sizing_calculation
-)
-from modules.ahu_selection import (
-
-    ahu_selection
-)
-from modules.fan_selection import (
-
-    fan_selection_calculation
-)
-from modules.energy_analyzer import (
-
-    hvac_energy_analyzer
-)
-from modules.user_manual import (
-
-    show_user_manual
-)
-from modules.ventilation_engine import (
-
-    ventilation_tab
-)
-from modules.solar_gain import (
-
-    solar_gain_tab
-)
-from modules.psychrometrics import (
-    psychrometric_tab
-)
-# =========================================
-# ADVANCED HVAC AI
-# U-VALUE CONSTRUCTION ENGINE
-# =========================================
-
+All calculation logic/formulas/inputs are otherwise UNCHANGED from your
+original modules.
+"""
 import streamlit as st
 
-
-# =========================================
-# CONSTRUCTION DATABASE
-# =========================================
-
-construction_db = {
-
-    "9in Brick Wall": 2.2,
-
-    "AAC Block Wall": 1.1,
-
-    "Insulated Wall": 0.45,
-
-    "RCC Roof": 3.0,
-
-    "Insulated Roof": 0.6,
-
-    "Double Glazed Glass": 2.8,
-
-    "Reflective Glass": 1.9
-}
-
-
-# =========================================
-# MAIN FUNCTION
-# =========================================
-
-def uvalue_tab():
-
-    st.header(
-        "U-Value Construction Library"
-    )
-
-    st.markdown("---")
-
-    # =====================================
-    # INPUTS
-    # =====================================
-
-    construction = st.selectbox(
-
-        "Construction Type",
-
-        list(construction_db.keys())
-    )
-
-    area = st.number_input(
-
-        "Surface Area (m²)",
-
-        value=100.0
-    )
-
-    delta_t = st.number_input(
-
-        "Temperature Difference ΔT (°C)",
-
-        value=10.0
-    )
-
-    # =====================================
-    # CALCULATIONS
-    # =====================================
-
-    u_value = construction_db[construction]
-
-    heat_gain = (
-
-        u_value
-
-        *
-
-        area
-
-        *
-
-        delta_t
-    )
-
-    heat_gain_kw = heat_gain / 1000
-
-    # =====================================
-    # RESULTS
-    # =====================================
-
-    st.markdown("---")
-
-    st.success(
-        "Envelope Heat Transfer Calculated"
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.metric(
-            "Construction Type",
-            construction
-        )
-
-        st.metric(
-            "U-Value",
-            f"{u_value} W/m²K"
-        )
-
-    with col2:
-
-        st.metric(
-            "Envelope Heat Gain",
-            f"{round(heat_gain_kw,2)} kW"
-        )
-
-    # =====================================
-    # ENGINEERING INSIGHT
-    # =====================================
-
-    st.markdown("---")
-
-    if u_value > 2.5:
-
-        st.warning(
-            "High U-value indicates poor insulation."
-        )
-
-    elif u_value < 1.0:
-
-        st.success(
-            "Good thermal insulation performance."
-        )
-
-    # =====================================
-    # ENGINEERING NOTES
-    # =====================================
-
-    st.markdown("---")
-
-    st.info(
-        '''
-        Heat Transfer Formula:
-
-        Q = U × A × ΔT
-
-        Where:
-
-        U = Overall Heat Transfer Coefficient
-
-        A = Surface Area
-
-        ΔT = Temperature Difference
-
-        Lower U-value means better insulation.
-        '''
-    )
-
-
-# =========================================
-# ADVANCED HVAC AI
-# PSYCHROMETRIC MODULE
-# =========================================
-
-from psychrolib import *
-
-# =========================================
-# SET SI UNITS
-# =========================================
-
-SetUnitSystem(SI)
-
-# =========================================
-# PSYCHROMETRIC CALCULATION
-# =========================================
-
-def psychrometric_calculation(
-    dry_bulb_temp,
-    relative_humidity
-):
-
-    """
-    dry_bulb_temp = °C
-    relative_humidity = %
-    """
-
-    # Convert RH to decimal
-
-    rh = (
-        relative_humidity / 100
-    )
-
-    # Standard atmospheric pressure
-
-    pressure = 101325
-
-    # -------------------------------------
-    # WET BULB TEMPERATURE
-    # -------------------------------------
-
-    wet_bulb = GetTWetBulbFromRelHum(
-
-        dry_bulb_temp,
-
-        rh,
-
-        pressure
-    )
-
-    # -------------------------------------
-    # DEW POINT
-    # -------------------------------------
-
-    dew_point = GetTDewPointFromRelHum(
-
-        dry_bulb_temp,
-
-        rh
-    )
-
-    # -------------------------------------
-    # HUMIDITY RATIO
-    # -------------------------------------
-
-    humidity_ratio = GetHumRatioFromRelHum(
-
-        dry_bulb_temp,
-
-        rh,
-
-        pressure
-    )
-
-    # -------------------------------------
-    # ENTHALPY
-    # -------------------------------------
-
-    enthalpy = GetMoistAirEnthalpy(
-
-        dry_bulb_temp,
-
-        humidity_ratio
-    ) / 1000
-
-    return {
-
-        "Dry Bulb Temp (°C)": round(
-            dry_bulb_temp, 2
-        ),
-
-        "Relative Humidity (%)": round(
-            relative_humidity, 2
-        ),
-
-        "Wet Bulb Temp (°C)": round(
-            wet_bulb, 2
-        ),
-
-        "Dew Point Temp (°C)": round(
-            dew_point, 2
-        ),
-
-        "Humidity Ratio (kg/kg)": round(
-            humidity_ratio, 5
-        ),
-
-        "Enthalpy (kJ/kg)": round(
-            enthalpy, 2
-        )
-    }
-
-
+from modules.cooling_load import total_cooling_load
+from modules.duct_sizing import rectangular_duct_sizing, circular_duct_sizing
+from modules.pressure_drop import pressure_drop_calculation
+from modules.pipe_sizing import pipe_sizing_calculation
+from modules.ahu_selection import ahu_selection
+from modules.fan_selection import fan_selection_calculation
+from modules.energy_analyzer import hvac_energy_analyzer
+from modules.user_manual import show_user_manual
+from modules.ventilation_engine import ventilation_tab
+from modules.solar_gain import solar_gain_tab
+from modules.psychrometrics import psychrometric_tab
+from modules.uvalue_library import uvalue_tab
+from modules.report_generator import report_tab, add_to_report
+from modules.ai_assistant import ai_assistant_tab
+
+
+def _show_result_grid(result: dict):
+    col_a, col_b = st.columns(2)
+    for i, (key, value) in enumerate(result.items()):
+        target = col_a if i % 2 == 0 else col_b
+        with target:
+            st.metric(key, value)
 
 
 # =====================================
@@ -339,15 +60,128 @@ st.set_page_config(
 )
 
 # =====================================
+# CUSTOM STYLING (visual only - no logic changed)
+# =====================================
+
+st.markdown(
+    """
+    <style>
+    /* Overall page padding */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+        max-width: 1200px;
+    }
+
+    /* Title */
+    h1 {
+        color: #1e88e5 !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.5px;
+    }
+
+    /* Subheader under title */
+    div[data-testid="stAppViewContainer"] h3 {
+        color: #9db2c5 !important;
+        font-weight: 400 !important;
+    }
+
+    /* Tabs */
+    button[data-baseweb="tab"] {
+        font-size: 15px;
+        font-weight: 600;
+        padding: 10px 18px;
+        border-radius: 8px 8px 0 0;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: #1a2634;
+        color: #1e88e5 !important;
+        border-bottom: 3px solid #1e88e5;
+    }
+
+    /* Metric cards */
+    div[data-testid="stMetric"] {
+        background-color: #16212e;
+        border: 1px solid #24344a;
+        border-radius: 10px;
+        padding: 14px 18px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    div[data-testid="stMetricLabel"] {
+        color: #8fa5bc !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+    div[data-testid="stMetricValue"] {
+        color: #e8edf2 !important;
+        font-size: 22px !important;
+        font-weight: 700 !important;
+    }
+
+    /* Buttons */
+    .stButton > button {
+        background-color: #1e88e5;
+        color: white;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        padding: 0.5rem 1.4rem;
+        transition: background-color 0.15s ease;
+    }
+    .stButton > button:hover {
+        background-color: #1565c0;
+        color: white;
+        border: none;
+    }
+
+    /* Section headers inside tabs */
+    div[data-testid="stAppViewContainer"] h2 {
+        color: #e8edf2 !important;
+        border-bottom: 2px solid #24344a;
+        padding-bottom: 8px;
+        margin-top: 4px;
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #131c27;
+        border-right: 1px solid #24344a;
+    }
+    section[data-testid="stSidebar"] h1 {
+        font-size: 20px !important;
+    }
+
+    /* Success / warning / info boxes get rounder corners */
+    div[data-testid="stAlert"] {
+        border-radius: 10px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# =====================================
 # TITLE
 # =====================================
 
-st.title(
-    "Advanced HVAC Sizing Tool"
-)
-
-st.subheader(
-    "Indian SI HVAC Engineering Platform"
+st.markdown(
+    """
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:0.2rem;">
+        <div style="font-size:38px;">🌬️</div>
+        <div>
+            <div style="font-size:32px; font-weight:700; color:#1e88e5; line-height:1.1;">
+                Advanced HVAC Sizing Tool
+            </div>
+            <div style="font-size:15px; color:#9db2c5; margin-top:2px;">
+                Indian SI HVAC Engineering Platform &nbsp;·&nbsp; Kamra Engineering Solutions
+            </div>
+        </div>
+    </div>
+    <hr style="border-color:#24344a; margin-top:14px; margin-bottom:22px;">
+    """,
+    unsafe_allow_html=True,
 )
 
 # =====================================
@@ -357,10 +191,6 @@ st.subheader(
 st.sidebar.header(
     "Project Inputs"
 )
-
-# -------------------------------------
-# CITY
-# -------------------------------------
 
 city = st.sidebar.selectbox(
     "Select City",
@@ -373,10 +203,6 @@ city = st.sidebar.selectbox(
         "Chandigarh"
     ]
 )
-
-# -------------------------------------
-# BUILDING TYPE
-# -------------------------------------
 
 building_type = st.sidebar.selectbox(
     "Building Type",
@@ -391,46 +217,38 @@ building_type = st.sidebar.selectbox(
     ]
 )
 
-# -------------------------------------
-# PROJECT NAME
-# -------------------------------------
-
 project_name = st.sidebar.text_input(
     "Project Name",
     value=f"{building_type} HVAC Project"
 )
 
+st.sidebar.markdown("---")
+st.sidebar.caption("Kamra Engineering Solutions · kamraengineeringsolution.com")
+
 # =====================================
 # MAIN TABS
 # =====================================
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9,tab10,tab11,tab12 = st.tabs([
+(
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8,
+    tab9, tab10, tab11, tab12, tab13, tab14,
+) = st.tabs([
 
     "Cooling Load",
-
     "Duct Sizing",
-
     "Pressure Drop",
-
     "Psychrometrics",
-
     "Pipe Sizing",
-
     "AHU Selection",
-
     "Fan Selection",
-
     "Energy Analyzer",
-
     "User Manual",
     "ASHRAE Ventilation",
     "Solar Gain",
     "U-Value Library",
-    
-    
+    "PDF Report Export",
+    "AI Engineering Assistant",
 ])
-
-
 
 
 # =====================================
@@ -447,90 +265,36 @@ with tab1:
 
     with col1:
 
-        area = st.number_input(
-            "Area (m²)",
-            value=1000.0
-        )
-
-        people = st.number_input(
-            "Occupancy",
-            value=50
-        )
-
-        lighting = st.number_input(
-            "Lighting Load (W/m²)",
-            value=10.0
-        )
+        area = st.number_input("Area (m²)", value=1000.0)
+        people = st.number_input("Occupancy", value=50)
+        lighting = st.number_input("Lighting Load (W/m²)", value=10.0)
 
     with col2:
 
-        equipment = st.number_input(
-            "Equipment Load (W/m²)",
-            value=15.0
-        )
+        equipment = st.number_input("Equipment Load (W/m²)", value=15.0)
+        airflow = st.number_input("Fresh Air (m³/s)", value=2.0)
+        delta_t = st.number_input("Delta T (°C)", value=10.0)
 
-        airflow = st.number_input(
-            "Fresh Air (m³/s)",
-            value=2.0
-        )
-
-        delta_t = st.number_input(
-            "Delta T (°C)",
-            value=10.0
-        )
-
-    if st.button(
-        "Calculate Cooling Load"
-    ):
+    if st.button("Calculate Cooling Load"):
 
         result = total_cooling_load(
-
             people=people,
-
             area=area,
-
             lighting_w_per_m2=lighting,
-
             equipment_w_per_m2=equipment,
-
             airflow_m3s=airflow,
-
             delta_t=delta_t
         )
 
-        st.success(
-            "Calculation Completed"
-        )
+        st.session_state["cl_result"] = result
+        st.success("Calculation Completed")
+        st.subheader("Cooling Load Results")
+        _show_result_grid(result)
 
-        st.subheader(
-            "Cooling Load Results"
-        )
+    if "cl_result" in st.session_state and st.button("Add Cooling Load to Report"):
+        add_to_report("Cooling Load Calculation", st.session_state["cl_result"])
+        st.toast("Added to report")
 
-        col3, col4 = st.columns(2)
-
-        i = 0
-
-        for key, value in result.items():
-
-            if i % 2 == 0:
-
-                with col3:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            else:
-
-                with col4:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            i += 1
 
 # =====================================
 # TAB-2 DUCT SIZING
@@ -542,87 +306,30 @@ with tab2:
         "Duct Sizing Engine"
     )
 
-    duct_type = st.selectbox(
-
-        "Select Duct Type",
-
-        [
-            "Rectangular",
-            "Circular"
-        ]
-    )
+    duct_type = st.selectbox("Select Duct Type", ["Rectangular", "Circular"])
 
     col5, col6 = st.columns(2)
 
     with col5:
-
-        airflow_cmh = st.number_input(
-
-            "Airflow (CMH)",
-
-            value=5000.0
-        )
-
+        airflow_cmh = st.number_input("Airflow (CMH)", value=5000.0)
     with col6:
+        velocity = st.number_input("Velocity (m/s)", value=6.0)
 
-        velocity = st.number_input(
-
-            "Velocity (m/s)",
-
-            value=6.0
-        )
-
-    if st.button(
-        "Calculate Duct Size"
-    ):
+    if st.button("Calculate Duct Size"):
 
         if duct_type == "Rectangular":
-
-            result = rectangular_duct_sizing(
-
-                airflow_cmh,
-
-                velocity
-            )
-
+            result = rectangular_duct_sizing(airflow_cmh, velocity)
         else:
+            result = circular_duct_sizing(airflow_cmh, velocity)
 
-            result = circular_duct_sizing(
+        st.session_state["ds_result"] = result
+        st.success("Duct Sizing Completed")
+        _show_result_grid(result)
 
-                airflow_cmh,
+    if "ds_result" in st.session_state and st.button("Add Duct Sizing to Report"):
+        add_to_report("Duct Sizing", st.session_state["ds_result"])
+        st.toast("Added to report")
 
-                velocity
-            )
-
-        st.success(
-            "Duct Sizing Completed"
-        )
-
-        col7, col8 = st.columns(2)
-
-        i = 0
-
-        for key, value in result.items():
-
-            if i % 2 == 0:
-
-                with col7:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            else:
-
-                with col8:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            i += 1
 
 # =====================================
 # TAB-3 PRESSURE DROP
@@ -637,230 +344,45 @@ with tab3:
     col9, col10 = st.columns(2)
 
     with col9:
-
-        airflow_pd = st.number_input(
-
-            "Airflow for Pressure Drop (CMH)",
-
-            value=12000.0
-        )
-
-        velocity_pd = st.number_input(
-
-            "Velocity for Pressure Drop (m/s)",
-
-            value=6.0
-        )
-
+        airflow_pd = st.number_input("Airflow for Pressure Drop (CMH)", value=12000.0)
+        velocity_pd = st.number_input("Velocity for Pressure Drop (m/s)", value=6.0)
     with col10:
+        duct_length = st.number_input("Duct Length (m)", value=25.0)
+        elbows = st.number_input("Number of Elbows", value=4)
 
-        duct_length = st.number_input(
-
-            "Duct Length (m)",
-
-            value=25.0
-        )
-
-        elbows = st.number_input(
-
-            "Number of Elbows",
-
-            value=4
-        )
-
-    if st.button(
-        "Calculate Pressure Drop"
-    ):
+    if st.button("Calculate Pressure Drop"):
 
         result = pressure_drop_calculation(
-
             airflow_cmh=airflow_pd,
-
             velocity=velocity_pd,
-
             duct_length=duct_length,
-
             number_of_elbows=elbows
         )
 
-        st.success(
-            "Pressure Drop Calculation Completed"
-        )
+        st.session_state["pd_result"] = result
+        st.success("Pressure Drop Calculation Completed")
+        _show_result_grid(result)
 
-        col11, col12 = st.columns(2)
+    if "pd_result" in st.session_state and st.button("Add Pressure Drop to Report"):
+        add_to_report("Pressure Drop", st.session_state["pd_result"])
+        st.toast("Added to report")
 
-        i = 0
-
-        for key, value in result.items():
-
-            if i % 2 == 0:
-
-                with col11:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            else:
-
-                with col12:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            i += 1
 
 # =====================================
 # TAB-4 PSYCHROMETRICS
+# (was fully duplicated inline before - now calls the real module,
+#  which also has the RH-curve chart bug fixed)
 # =====================================
-
 
 with tab4:
 
-    st.header(
-        "Psychrometric Engine"
-    )
+    psychrometric_tab()
 
-    col13, col14 = st.columns(2)
+    if "last_psychro_result" in st.session_state and st.button("Add Psychrometrics to Report"):
+        add_to_report("Psychrometrics", st.session_state["last_psychro_result"])
+        st.toast("Added to report")
 
-    with col13:
 
-        dbt = st.number_input(
-
-            "Dry Bulb Temperature (°C)",
-
-            value=35.0
-        )
-
-    with col14:
-
-        rh = st.number_input(
-
-            "Relative Humidity (%)",
-
-            value=60.0
-        )
-
-    if st.button(
-        "Calculate Psychrometrics"
-    ):
-
-        result = psychrometric_calculation(
-
-            dry_bulb_temp=dbt,
-
-            relative_humidity=rh
-        )
-
-        st.success(
-            "Psychrometric Calculation Completed"
-        )
-
-        col15, col16 = st.columns(2)
-
-        i = 0
-
-        for key, value in result.items():
-
-            if i % 2 == 0:
-
-                with col15:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            else:
-
-                with col16:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            i += 1
-        # =====================================
-        # PSYCHROMETRIC VISUALIZATION
-        # =====================================
-
-        st.markdown("---")
-
-        st.subheader(
-            "Psychrometric Visualization"
-        )
-
-        import matplotlib.pyplot as plt
-        import numpy as np
-
-        fig, ax = plt.subplots(figsize=(10,6))
-
-        temperatures = np.linspace(0, 50, 100)
-
-        # RH Curves
-
-        for humidity in [20, 40, 60, 80, 100]:
-
-            humidity_curve = (
-                humidity * np.ones_like(
-                    temperatures
-                )
-            )
-
-            ax.plot(
-
-                temperatures,
-
-                humidity_curve,
-
-                label=f"{humidity}% RH"
-            )
-
-        # Current Condition Point
-
-        ax.scatter(
-
-            dbt,
-
-            rh,
-
-            s=150
-        )
-
-        # Comfort Zone
-
-        ax.fill_between(
-
-            [22, 26],
-
-            40,
-
-            60,
-
-            alpha=0.2
-        )
-
-        ax.set_title(
-            "Simplified Psychrometric Chart"
-        )
-
-        ax.set_xlabel(
-            "Dry Bulb Temperature (°C)"
-        )
-
-        ax.set_ylabel(
-            "Relative Humidity (%)"
-        )
-
-        ax.grid(True)
-
-        ax.legend()
-
-        st.pyplot(fig)
 # =====================================
 # TAB-5 PIPE SIZING
 # =====================================
@@ -874,73 +396,29 @@ with tab5:
     col17, col18 = st.columns(2)
 
     with col17:
-
-        cooling_tr = st.number_input(
-
-            "Cooling Load (TR)",
-
-            value=100.0
-        )
-
-        delta_t_pipe = st.number_input(
-
-            "CHW Delta T (°C)",
-
-            value=5.0
-        )
-
+        cooling_tr = st.number_input("Cooling Load (TR)", value=100.0)
+        delta_t_pipe = st.number_input("CHW Delta T (°C)", value=5.0)
     with col18:
+        water_velocity = st.number_input("Water Velocity (m/s)", value=2.0)
 
-        water_velocity = st.number_input(
-
-            "Water Velocity (m/s)",
-
-            value=2.0
-        )
-
-    if st.button(
-        "Calculate Pipe Size"
-    ):
+    if st.button("Calculate Pipe Size"):
 
         result = pipe_sizing_calculation(
-
             cooling_load_tr=cooling_tr,
-
             delta_t=delta_t_pipe,
-
             water_velocity=water_velocity
         )
 
-        st.success(
-            "Pipe Sizing Completed"
-        )
+        st.session_state["ps_result"] = result
+        st.success("Pipe Sizing Completed")
+        _show_result_grid(result)
 
-        col19, col20 = st.columns(2)
+    if "ps_result" in st.session_state and st.button("Add Pipe Sizing to Report"):
+        add_to_report("Pipe Sizing", st.session_state["ps_result"])
+        st.toast("Added to report")
 
-        i = 0
 
-        for key, value in result.items():
-
-            if i % 2 == 0:
-
-                with col19:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            else:
-
-                with col20:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            i += 1
-      # =====================================
+# =====================================
 # TAB-6 AHU SELECTION
 # =====================================
 
@@ -953,88 +431,31 @@ with tab6:
     col21, col22 = st.columns(2)
 
     with col21:
-
-        ahu_airflow = st.number_input(
-
-            "AHU Airflow (CMH)",
-
-            value=12000.0
-        )
-
-        ahu_load = st.number_input(
-
-            "Cooling Load (TR)",
-
-            value=50.0
-        )
-
+        ahu_airflow = st.number_input("AHU Airflow (CMH)", value=12000.0)
+        ahu_load = st.number_input("Cooling Load (TR)", value=50.0)
     with col22:
+        ahu_esp = st.number_input("ESP (Pa)", value=750.0)
+        filter_type = st.selectbox("Filter Type", ["Pre Filter", "Fine Filter", "HEPA Filter"])
 
-        ahu_esp = st.number_input(
-
-            "ESP (Pa)",
-
-            value=750.0
-        )
-
-        filter_type = st.selectbox(
-
-            "Filter Type",
-
-            [
-                "Pre Filter",
-
-                "Fine Filter",
-
-                "HEPA Filter"
-            ]
-        )
-
-    if st.button(
-        "Select AHU"
-    ):
+    if st.button("Select AHU"):
 
         result = ahu_selection(
-
             airflow_cmh=ahu_airflow,
-
             cooling_load_tr=ahu_load,
-
             esp=ahu_esp,
-
             filter_type=filter_type
         )
 
-        st.success(
-            "AHU Selection Completed"
-        )
+        st.session_state["ahu_result"] = result
+        st.success("AHU Selection Completed")
+        _show_result_grid(result)
 
-        col23, col24 = st.columns(2)
+    if "ahu_result" in st.session_state and st.button("Add AHU Selection to Report"):
+        add_to_report("AHU Selection", st.session_state["ahu_result"])
+        st.toast("Added to report")
 
-        i = 0
 
-        for key, value in result.items():
-
-            if i % 2 == 0:
-
-                with col23:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            else:
-
-                with col24:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            i += 1      
- # =====================================
+# =====================================
 # TAB-7 FAN SELECTION
 # =====================================
 
@@ -1047,73 +468,29 @@ with tab7:
     col25, col26 = st.columns(2)
 
     with col25:
-
-        fan_airflow = st.number_input(
-
-            "Fan Airflow (CMH)",
-
-            value=15000.0
-        )
-
-        fan_pressure = st.number_input(
-
-            "Static Pressure (Pa)",
-
-            value=850.0
-        )
-
+        fan_airflow = st.number_input("Fan Airflow (CMH)", value=15000.0)
+        fan_pressure = st.number_input("Static Pressure (Pa)", value=850.0)
     with col26:
+        fan_efficiency = st.number_input("Fan Efficiency (%)", value=70.0)
 
-        fan_efficiency = st.number_input(
-
-            "Fan Efficiency (%)",
-
-            value=70.0
-        )
-
-    if st.button(
-        "Select Fan"
-    ):
+    if st.button("Select Fan"):
 
         result = fan_selection_calculation(
-
             airflow_cmh=fan_airflow,
-
             static_pressure=fan_pressure,
-
             fan_efficiency=fan_efficiency
         )
 
-        st.success(
-            "Fan Selection Completed"
-        )
+        st.session_state["fan_result"] = result
+        st.success("Fan Selection Completed")
+        _show_result_grid(result)
 
-        col27, col28 = st.columns(2)
+    if "fan_result" in st.session_state and st.button("Add Fan Selection to Report"):
+        add_to_report("Fan Selection", st.session_state["fan_result"])
+        st.toast("Added to report")
 
-        i = 0
 
-        for key, value in result.items():
-
-            if i % 2 == 0:
-
-                with col27:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            else:
-
-                with col28:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            i += 1           
- # =====================================
+# =====================================
 # TAB-8 ENERGY ANALYZER
 # =====================================
 
@@ -1126,112 +503,89 @@ with tab8:
     col29, col30 = st.columns(2)
 
     with col29:
-
-        energy_tr = st.number_input(
-
-            "Cooling Load (TR)",
-
-            value=200.0
-        )
-
-        chiller_cop = st.number_input(
-
-            "Chiller COP",
-
-            value=5.5
-        )
-
+        energy_tr = st.number_input("Cooling Load (TR)", value=200.0)
+        chiller_cop = st.number_input("Chiller COP", value=5.5)
     with col30:
+        operating_hours = st.number_input("Operating Hours per Day", value=16.0)
+        tariff = st.number_input("Electricity Tariff (₹/kWh)", value=9.0)
 
-        operating_hours = st.number_input(
-
-            "Operating Hours per Day",
-
-            value=16.0
-        )
-
-        tariff = st.number_input(
-
-            "Electricity Tariff (₹/kWh)",
-
-            value=9.0
-        )
-
-    if st.button(
-        "Analyze Energy"
-    ):
+    if st.button("Analyze Energy"):
 
         result = hvac_energy_analyzer(
-
             cooling_load_tr=energy_tr,
-
             cop=chiller_cop,
-
             operating_hours=operating_hours,
-
             electricity_tariff=tariff
         )
 
-        st.success(
-            "Energy Analysis Completed"
-        )
+        st.session_state["ea_result"] = result
+        st.success("Energy Analysis Completed")
+        _show_result_grid(result)
 
-        col31, col32 = st.columns(2)
+    if "ea_result" in st.session_state and st.button("Add Energy Analysis to Report"):
+        add_to_report("Energy Analysis", st.session_state["ea_result"])
+        st.toast("Added to report")
 
-        i = 0
 
-        for key, value in result.items():
-
-            if i % 2 == 0:
-
-                with col31:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            else:
-
-                with col32:
-
-                    st.metric(
-                        key,
-                        value
-                    )
-
-            i += 1           
-  # =====================================
+# =====================================
 # TAB-9 USER MANUAL
 # =====================================
 
 with tab9:
 
-    show_user_manual()          
-  # =====================================
-# TAB-10 VENTILATION
+    show_user_manual()
+
+
+# =====================================
+# TAB-10 ASHRAE VENTILATION
 # =====================================
 
 with tab10:
 
     ventilation_tab()
-  # =====================================
+
+    if "vent_result" in st.session_state and st.button("Add Ventilation to Report"):
+        add_to_report("ASHRAE Ventilation", st.session_state["vent_result"])
+        st.toast("Added to report")
+
+
+# =====================================
 # TAB-11 SOLAR GAIN
 # =====================================
 
 with tab11:
 
     solar_gain_tab()
-  # =====================================
-# TAB-12 U-VALUE
+
+
+# =====================================
+# TAB-12 U-VALUE LIBRARY
+# (was fully duplicated inline before - now calls the real module)
 # =====================================
 
 with tab12:
 
     uvalue_tab()
-  
-  
-            
+
+
+# =====================================
+# TAB-13 PDF REPORT EXPORT (NEW)
+# =====================================
+
+with tab13:
+
+    report_tab()
+
+
+# =====================================
+# TAB-14 AI ENGINEERING ASSISTANT (NEW)
+# =====================================
+
+with tab14:
+
+    ai_assistant_tab()
+
+
 # =====================================
 # FOOTER
 # =====================================
@@ -1239,5 +593,5 @@ with tab12:
 st.markdown("---")
 
 st.caption(
-    "Advanced HVAC AI | Indian SI Engineering Platform"
+    "Advanced HVAC AI | Indian SI Engineering Platform | Kamra Engineering Solutions"
 )
